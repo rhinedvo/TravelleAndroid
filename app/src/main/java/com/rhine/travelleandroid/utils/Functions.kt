@@ -1,5 +1,8 @@
 package com.rhine.travelleandroid.utils
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Patterns
 import java.math.BigInteger
 import java.security.MessageDigest
@@ -27,3 +30,11 @@ fun String?.isPasswordValid(): Boolean = Pattern.compile(
 fun String?.passwordLength(): Boolean = Pattern.compile(
     ".{6,}"
 ).matcher(this ?: "").matches()
+
+fun isOnline(context: Context): Boolean {
+    val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}

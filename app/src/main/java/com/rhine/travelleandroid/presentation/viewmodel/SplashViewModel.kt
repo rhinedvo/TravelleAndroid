@@ -1,67 +1,57 @@
 package com.rhine.travelleandroid.presentation.viewmodel
 
 import dagger.hilt.android.lifecycle.HiltViewModel
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rhine.travelleandroid.domain.usecase.GetUserTokenUseCase
-import com.rhine.travelleandroid.domain.usecase.RegisterGuestUseCase
-import com.rhine.travelleandroid.domain.usecase.GetUserUseCase
-import com.rhine.travelleandroid.domain.usecase.GetAllTripsUseCase
-import com.rhine.travelleandroid.domain.usecase.GetListUseCase
-import com.rhine.travelleandroid.domain.model.User
-import com.rhine.travelleandroid.domain.utils.UIState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import com.rhine.travelleandroid.domain.usecase.auth.GuestRegisterUseCase
+import com.rhine.travelleandroid.domain.usecase.user.GetUserUseCase
+import com.rhine.travelleandroid.domain.usecase.trips.GetTripsUseCase
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed class SplashState {
+    object Loading : SplashState()
+    object NavigateToAuth : SplashState()
+    object NavigateToMain : SplashState()
+    object Error : SplashState()
+}
+
 @HiltViewModel
 class SplashViewModel @Inject constructor(
-    private val getUserTokenUseCase: GetUserTokenUseCase,
-    private val registerGuestUseCase: RegisterGuestUseCase,
+    private val guestRegisterUseCase: GuestRegisterUseCase,
     private val getUserUseCase: GetUserUseCase,
-    private val getAllTripsUseCase: GetAllTripsUseCase,
-    private val getListUseCase: GetListUseCase
+    private val getTripsUseCase: GetTripsUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<UIState>(UIState.Loading)
-    val uiState: StateFlow<UIState> = _uiState
+    var splashState: SplashState = SplashState.Loading
+        private set
 
-    fun initialize(isOnline: Boolean) {
+    fun initializeApp(hasInternet: Boolean, hasToken: Boolean, isGuest: Boolean) {
         viewModelScope.launch {
-            if (!isOnline) {
-                val token = getUserTokenUseCase()
-                if (token != null) _uiState.value = UIState.NavigateToMain
-                else _uiState.value = UIState.NavigateToAuth
+            delay(1500)
+
+            if (!hasInternet && !hasToken) {
+                splashState = SplashState.NavigateToAuth
                 return@launch
             }
 
-            // Завантажуємо початкові дані
-            getListUseCase().onSuccess {
-                val token = getUserTokenUseCase()
-                if (token == null) {
-                    registerGuestUseCase()
-                    _uiState.value = UIState.NavigateToAuth
+            if (!hasToken) {
+                guestRegisterUseCase()
+                splashState = SplashState.NavigateToAuth
+            } else {
+                if (isGuest) {
+                    splashState = SplashState.NavigateToMain
                 } else {
-                    val user = getUserUseCase()
-                    handleUser(user)
+                    try {
+                        getUserUseCase()
+                        getTripsUseCase()
+                        splashState = SplashState.NavigateToMain
+                    } catch (e: Exception) {
+                        splashState = SplashState.Error
+                    }
                 }
-            }.onFailure {
-                _uiState.value = UIState.Error("Failed to load initial list")
             }
-        }
-    }
-
-    private suspend fun handleUser(user: User?) {
-        if (user == null) {
-            _uiState.value = UIState.NavigateToAuth
-        } else if (!user.isEmailVerified) {
-            _uiState.value = UIState.NavigateToVerifyEmail
-        } else {
-            getAllTripsUseCase()
-            _uiState.value = UIState.NavigateToMain
         }
     }
 }

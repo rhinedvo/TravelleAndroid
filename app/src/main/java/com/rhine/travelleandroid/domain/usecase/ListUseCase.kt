@@ -1,12 +1,13 @@
 package com.rhine.travelleandroid.domain.usecase
 
-import com.rhine.travelleandroid.data.repository.ListRepository
-import javax.inject.Inject
+import com.kodetechnologies.guzoandroid.date.repository.ListRepository
+import toothpick.InjectConstructor
 
-class ListUseCase @Inject constructor(
+@InjectConstructor
+class ListUseCase (
     private val repository: ListRepository
 ) {
-    suspend operator fun invoke(): Result<Boolean> = repository.getList()
+    suspend fun execute(): Result<Boolean> {
+        return repository.getList()
+    }
 }
-
-

@@ -1,64 +1,59 @@
 package com.rhine.travelleandroid.presentation.screen.splash
 
-import android.annotation.SuppressLint
-import android.app.Activity
-import android.content.Intent
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rhine.travelleandroid.ui.main.MainActivity
-import com.rhine.travelleandroid.ui.state.UIState
-import com.rhine.travelleandroid.ui.theme.TravelleTheme
-import com.rhine.travelleandroid.ui.viewmodel.AuthViewModel
-import dagger.hilt.android.AndroidEntryPoint
+import androidx.navigation.NavController
+import com.rhine.travelleandroid.R
+import com.rhine.travelleandroid.presentation.viewmodel.SplashState
+import com.rhine.travelleandroid.presentation.viewmodel.SplashViewModel
+import com.rhine.travelleandroid.utils.isOnline
 
-@SuppressLint("CustomSplashScreen")
-@AndroidEntryPoint
-class SplashScreen : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+@Composable
+fun SplashScreen(
+    navController: NavController,
+    viewModel: SplashViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val hasInternet = remember { isOnline(context) }
+    val hasToken = false // TODO: отримаєш із локальної БД (Room)
+    val isGuest = false // TODO: витягни з user entity
 
-
-        setContent {
-            TravelleTheme {
-                SplashScreen(
-                )
-            }
-        }
+    // Запуск ініціалізації
+    LaunchedEffect(Unit) {
+        viewModel.initializeApp(hasInternet, hasToken, isGuest)
     }
 
-    @Composable
-    fun SplashScreen(
-        viewModel: AuthViewModel = hiltViewModel()
+    // UI
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        val context = LocalContext.current
-        val state by viewModel.state.observeAsState(initial = UIState.LOADING)
+        Image(
+            painter = painterResource(id = R.drawable.ic_long_logo),
+            contentDescription = null,
+            modifier = Modifier.size(160.dp)
+        )
+    }
 
-        LaunchedEffect(Unit) {
-            // Test login request to verify flow
-            val pass = "Vivino#33"
-            viewModel.logIn("kramnu5351@gmail.com", pass)
-        }
-
-        when (state) {
-            is UIState.LOADING -> Unit
-            is UIState.SUCCESS -> {
-                LaunchedEffect("navigate") {
-                    val token = viewModel.getTokenString()
-                    // Navigate based on token; if no AuthActivity exists, fall back to MainActivity
-                    context.startActivity(
-                        Intent(
-                            context,
-                            MainActivity::class.java
-                        )
-                    )
-                    (context as? Activity)?.finish()
-                }
+    // Навігація
+    LaunchedEffect(viewModel.splashState) {
+        when (viewModel.splashState) {
+            SplashState.NavigateToAuth -> navController.navigate("auth") {
+                popUpTo("splash") { inclusive = true }
+            }
+            SplashState.NavigateToMain -> navController.navigate("main") {
+                popUpTo("splash") { inclusive = true }
             }
             else -> Unit
         }
