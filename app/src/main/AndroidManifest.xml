@@ -18,7 +18,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TravelleAndroid">
         <activity
-            android:name=".ui.SplashActivity"
+            android:name=".presentation.screen.splash.SplashScreen"
             android:configChanges="orientation|screenSize"
             android:exported="true"
             android:screenOrientation="portrait"

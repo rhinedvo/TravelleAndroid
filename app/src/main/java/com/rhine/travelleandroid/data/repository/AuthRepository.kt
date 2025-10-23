@@ -1,6 +1,6 @@
 package com.rhine.travelleandroid.data.repository
 
-import com.rhine.travelleandroid.common.global.sha256
+import com.rhine.travelleandroid.utils.sha256
 import com.rhine.travelleandroid.data.ResponseHandler
 import com.rhine.travelleandroid.data.api.AuthAPI
 import com.rhine.travelleandroid.data.local.database.model.Base

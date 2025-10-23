@@ -1,4 +1,4 @@
-package com.rhine.travelleandroid.common.global
+package com.rhine.travelleandroid.utils
 
 import android.content.res.Resources
 import com.kodetechnologies.luxeaiandroid.BuildConfig

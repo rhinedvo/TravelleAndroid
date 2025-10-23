@@ -1,4 +1,4 @@
-package com.rhine.travelleandroid.usecase
+package com.rhine.travelleandroid.domain.usecase
 
 import com.rhine.travelleandroid.data.repository.AuthRepository
 import javax.inject.Inject

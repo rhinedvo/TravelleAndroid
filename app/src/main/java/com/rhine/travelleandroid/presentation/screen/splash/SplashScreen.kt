@@ -1,32 +1,31 @@
-package com.rhine.travelleandroid.ui
+package com.rhine.travelleandroid.presentation.screen.splash
 
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.livedata.observeAsState
-import com.kodetechnologies.luxeaiandroid.ui.theme.LuxeAiAndroidTheme
-import com.rhine.travelleandroid.ui.state.UIState
-import com.rhine.travelleandroid.ui.viewmodel.AuthViewModel
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import android.app.Activity
-import android.content.Intent
 import com.rhine.travelleandroid.ui.main.MainActivity
+import com.rhine.travelleandroid.ui.state.UIState
+import com.rhine.travelleandroid.ui.theme.TravelleTheme
+import com.rhine.travelleandroid.ui.viewmodel.AuthViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @SuppressLint("CustomSplashScreen")
 @AndroidEntryPoint
-class SplashActivity : ComponentActivity() {
+class SplashScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
 
         setContent {
-            LuxeAiAndroidTheme {
+            TravelleTheme {
                 SplashScreen(
                 )
             }
@@ -43,7 +42,7 @@ class SplashActivity : ComponentActivity() {
         LaunchedEffect(Unit) {
             // Test login request to verify flow
             val pass = "Vivino#33"
-            viewModel.logIn("shkelet1987@gmail.com", pass)
+            viewModel.logIn("kramnu5351@gmail.com", pass)
         }
 
         when (state) {

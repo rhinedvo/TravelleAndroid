@@ -37,7 +37,7 @@ android {
     flavorDimensions += "default"
     productFlavors {
         create("live") {
-            applicationId = "com.kodetechnologies.luxeaiandroid"
+            applicationId = "app.guzoandroid"
             versionCode = 1
             versionName = "1.0.0"
             resValue("string", "app_name", "guzoandroid")
@@ -50,9 +50,9 @@ android {
         }
 
         create("dev") {
-            applicationId = "com.kodetechnologies.luxeaiandroid"
-            versionCode = 1
-            versionName = "1.0.0"
+            applicationId = "com.kodetechnologies.guzoandroid"
+            versionCode = 11
+            versionName = "1.1.1"
             resValue("string", "app_name", "DEV guzoandroid")
             buildConfigField(
                 "String",
