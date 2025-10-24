@@ -1,7 +1,8 @@
 package com.rhine.travelleandroid.utils
 
 import android.content.res.Resources
-import com.kodetechnologies.luxeaiandroid.BuildConfig
+import com.rhine.travelleandroid.BuildConfig
+
 const val STATE_SCOPE_NAME = "state_scope_name"
 const val API_INTERNET_ERROR = "api_internet_error"
 const val API_SERVER_ERROR = "api_server_error"

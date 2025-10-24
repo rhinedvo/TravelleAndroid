@@ -22,6 +22,9 @@ object DatabaseModule {
         Room.databaseBuilder(context, AppDatabase::class.java, "guzo_database")
             .build()
 
-    @Provides fun provideUserDao(database: AppDatabase): UserDao = database.userDao()
-    @Provides fun provideTokenDao(database: AppDatabase): TokenDao = database.tokenDao()
+    @Provides fun provideUserDao(db: AppDatabase) = db.userDao()
+    @Provides fun provideTokenDao(db: AppDatabase) = db.tokenDao()
+    @Provides fun provideTripDao(db: AppDatabase) = db.tripDao()
+    @Provides fun provideTripDayDao(db: AppDatabase) = db.tripDayDao()
+    @Provides fun provideDayActivityDao(db: AppDatabase) = db.dayActivityDao()
 }
