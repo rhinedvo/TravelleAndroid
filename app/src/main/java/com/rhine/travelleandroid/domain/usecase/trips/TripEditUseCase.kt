@@ -1,18 +1,18 @@
 package com.rhine.travelleandroid.domain.usecase.trips
 
-import com.kodetechnologies.guzoandroid.date.model.Requests
-import com.kodetechnologies.guzoandroid.date.model.TripDTO
-import com.rhine.travelleandroid.data.repository.TripsRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.domain.model.Request
+import com.rhine.travelleandroid.domain.model.Trip
+import com.rhine.travelleandroid.domain.repository.TripsRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class TripEditUseCase(
-    private val repository: TripsRepository,
+class TripEditUseCase @Inject constructor(
+    private val repository: TripsRepository
 ) {
-    suspend fun execute(tripId: Int, requests: Requests): Result<TripDTO> {
-        return repository.tripEdit(tripId, requests)
+    suspend operator fun invoke(tripId: Int, request: Request?): Result<Trip> {
+        return repository.editTrip(tripId, request)
     }
+
     fun cancel() {
-        repository.cancelTripCreate()
+        repository.cancelTripCreation()
     }
 }

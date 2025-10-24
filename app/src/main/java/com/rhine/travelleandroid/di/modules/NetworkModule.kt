@@ -19,69 +19,32 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor {
-        return HttpLoggingInterceptor().apply {
+    fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor =
+        HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
-    }
 
     @Provides
     @Singleton
-    fun provideAuthInterceptor(): Interceptor {
-        return Interceptor { chain ->
+    fun provideAuthInterceptor(): Interceptor =
+        Interceptor { chain ->
             val request = chain.request()
-            val newRequest = request.newBuilder()
+                .newBuilder()
                 .addHeader("Accept", "application/json")
                 .addHeader("Content-Type", "application/json")
                 .build()
-            chain.proceed(newRequest)
+            chain.proceed(request)
         }
-    }
 
     @Provides
     @Singleton
     fun provideOkHttpClient(
         loggingInterceptor: HttpLoggingInterceptor,
         authInterceptor: Interceptor
-    ): OkHttpClient {
-        val cacheDir = File(System.getProperty("java.io.tmpdir"), "okhttp-cache")
-        val cache = Cache(cacheDir, 10 * 1024 * 1024) // 10MB cache
-
-        return OkHttpClient.Builder()
-            .cache(cache)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor(authInterceptor)
-            .addInterceptor(loggingInterceptor)
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    @WithErrorHandler
-    fun provideOkHttpClientWithErrorHandler(
-        loggingInterceptor: HttpLoggingInterceptor,
-        authInterceptor: Interceptor
-    ): OkHttpClient {
-        val cacheDir = File(System.getProperty("java.io.tmpdir"), "okhttp-cache")
-        val cache = Cache(cacheDir, 10 * 1024 * 1024) // 10MB cache
-
-        return OkHttpClient.Builder()
-            .cache(cache)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor(authInterceptor)
-            .addInterceptor(loggingInterceptor)
-            .addInterceptor { chain ->
-                try {
-                    chain.proceed(chain.request())
-                } catch (e: Exception) {
-                    // Handle error here
-                    throw e
-                }
-            }
-            .build()
-    }
+    ): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(authInterceptor)
+        .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
 }

@@ -1,13 +1,18 @@
 package com.rhine.travelleandroid.domain.usecase.trips
 
-import com.rhine.travelleandroid.data.repository.TripsRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.domain.model.TripDay
+import com.rhine.travelleandroid.domain.repository.TripsRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class TripEditDayUseCase(
+class TripEditDayUseCase@Inject constructor(
     private val repository: TripsRepository
 ) {
-    suspend fun execute(tripId: Int, destination: String,budget: Double,  context: String): Result<Boolean> {
-        return repository.tripDayEdit(tripId, destination, budget, context)
+    suspend operator fun invoke(
+        tripDayId: Int,
+        destination: String,
+        budget: Double,
+        context: String
+    ): Result<TripDay> {
+        return repository.editTripDay(tripDayId, destination, budget, context)
     }
 }

@@ -1,488 +1,146 @@
 package com.rhine.travelleandroid.data.repository
 
-import com.kodetechnologies.guzoandroid.common.constants.TripStatuses
-import com.kodetechnologies.guzoandroid.date.ResponseHandler
-import com.kodetechnologies.guzoandroid.date.api.TripsAPI
-import com.kodetechnologies.guzoandroid.date.database.RealmManager
-import com.kodetechnologies.guzoandroid.date.model.Base
-import com.kodetechnologies.guzoandroid.date.model.DayActivityDTO
-import com.kodetechnologies.guzoandroid.date.model.Requests
-import com.kodetechnologies.guzoandroid.date.model.TripDTO
-import com.kodetechnologies.guzoandroid.date.model.TripDayDTO
-import com.kodetechnologies.guzoandroid.date.model.TripEntity
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
-import kotlinx.coroutines.CoroutineScope
+import com.rhine.travelleandroid.data.local.dao.*
+import com.rhine.travelleandroid.data.mapper.*
+import com.rhine.travelleandroid.data.remote.api.TripsAPI
+import com.rhine.travelleandroid.domain.model.*
+import com.rhine.travelleandroid.domain.repository.TripsRepository
+import com.rhine.travelleandroid.utils.safeApiCall
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import toothpick.InjectConstructor
-import kotlin.collections.get
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-interface TripsRepository {
-    suspend fun getTrips(): Result<List<TripDTO>>
-    suspend fun getTripId(id: Int): Result<Boolean>
-    suspend fun syncTrips(trips: List<TripDTO>): Result<Boolean>
-    suspend fun tripDelete(id: Int): Result<Boolean>
-    suspend fun tripRegenerate(id: Int): Result<TripDTO>
-    suspend fun tripEdit(tripId: Int, request: Requests?): Result<TripDTO>
-    suspend fun tripVote(tripId: Int, aiResultsVote: String): Result<Boolean>
-    suspend fun tripCreate(request: Requests?): Result<TripDTO>
-    suspend fun tripSurprise(requests: Requests?): Result<List<TripDTO>>
-    suspend fun tripSurpriseSave(trip: TripDTO?): Result<TripDTO>
-    suspend fun tripDayEdit(
+class TripsRepositoryImpl @Inject constructor(
+    private val api: TripsAPI,
+    private val tripDao: TripDao,
+    private val tripDayDao: TripDayDao,
+    private val dayActivityDao: DayActivityDao
+) : TripsRepository {
+
+    override suspend fun getTrips(): Result<List<Trip>> = safeApiCall {
+        val response = api.getTrips()
+        val tripDtos = response.trips ?: emptyList()
+
+        val tripEntities = tripDtos.map { it.toEntity() }
+        val tripDayEntities = mutableListOf<com.rhine.travelleandroid.data.local.entity.TripDayEntity>()
+        val dayActivityEntities = mutableListOf<com.rhine.travelleandroid.data.local.entity.DayActivityEntity>()
+
+        tripDtos.forEach { tripDto ->
+            val tripEntity = tripDto.toEntity()
+            val tripId = tripEntity.id
+
+            tripDto.tripDays.forEach { dayDto ->
+                val dayEntity = dayDto.toEntity(tripId)
+                tripDayEntities.add(dayEntity)
+
+                dayDto.dayActivities.forEach { actDto ->
+                    val actEntity = actDto.toEntity(dayEntity.id)
+                    dayActivityEntities.add(actEntity)
+                }
+            }
+        }
+
+        withContext(Dispatchers.IO) {
+            tripDao.clearTrips()
+            tripDao.insertTrips(tripEntities)
+            tripDayDao.insertTripDays(tripDayEntities)
+            dayActivityDao.insertDayActivities(dayActivityEntities)
+        }
+
+        tripDao.getAllTripsWithRelations().map { it.toDomain() }
+    }
+
+    override suspend fun getTripId(id: Int): Result<Trip> = safeApiCall {
+        val response = api.getTripId(id)
+        val dto = response.trip ?: throw Exception("Trip not found")
+
+        withContext(Dispatchers.IO) {
+            tripDao.insertTrip(dto.toEntity())
+            tripDayDao.deleteTripDaysByTripId(dto.id)
+            dayActivityDao.clearActivities()
+        }
+
+        dto.toDomain()
+    }
+
+    override suspend fun syncTrips(trips: List<Trip>): Result<Boolean> = safeApiCall {
+        api.tripSync(emptyList())
+        true
+    }
+
+    override suspend fun deleteTrip(id: Int): Result<Boolean> = safeApiCall {
+        api.tripDelete(id)
+        withContext(Dispatchers.IO) {
+            tripDao.deleteTripById(id)
+            tripDayDao.deleteTripDaysByTripId(id)
+        }
+        true
+    }
+
+    override suspend fun regenerateTrip(id: Int): Result<Trip> = safeApiCall {
+        val response = api.tripRegenerate(id)
+        val dto = response.trip ?: throw Exception("Empty trip")
+        withContext(Dispatchers.IO) { tripDao.insertTrip(dto.toEntity()) }
+        dto.toDomain()
+    }
+
+    override suspend fun editTrip(tripId: Int, request: Request?): Result<Trip> = safeApiCall {
+        val response = api.tripEdit(tripId, request?.toDto())
+        val dto = response.trip ?: throw Exception("Empty trip")
+        withContext(Dispatchers.IO) { tripDao.insertTrip(dto.toEntity()) }
+        dto.toDomain()
+    }
+
+    override suspend fun voteForTrip(tripId: Int, aiResultsVote: String): Result<Boolean> = safeApiCall {
+        api.tripVote(tripId, aiResultsVote)
+        true
+    }
+
+    override suspend fun createTrip(request: Request?): Result<Trip> = safeApiCall {
+        val response = api.tripCreate(request?.toDto())
+        val dto = response.trip ?: throw Exception("Empty trip")
+        withContext(Dispatchers.IO) { tripDao.insertTrip(dto.toEntity()) }
+        dto.toDomain()
+    }
+
+    override suspend fun tripSurprise(request: Request?): Result<List<Trip>> = safeApiCall {
+        val response = api.tripSurprise(request?.toDto())
+        val dtos = response.trips ?: emptyList()
+        dtos.map { it.toDomain() }
+    }
+
+    override suspend fun saveSurpriseTrip(trip: Trip?): Result<Trip> = safeApiCall {
+        val req = trip?.toTripSaveRequest()
+        val response = api.tripSurpriseSave(req)
+        val dto = response.trip ?: throw Exception("Empty trip")
+        dto.toDomain()
+    }
+
+    override suspend fun editTripDay(
         tripDayId: Int,
         destination: String,
         budget: Double,
-        context: String,
-    ): Result<Boolean>
-
-    suspend fun tripDayRegenerate(tripDayId: Int): Result<Boolean>
-    suspend fun tripDayActivityEdit(dayActivityId: Int, context: String): Result<Boolean>
-
-    fun cancelTripCreate()
-}
-
-@InjectConstructor
-class TripsRepositoryImpl(
-    private val tripsAPI: TripsAPI,
-) : TripsRepository {
-
-    override suspend fun getTrips(): Result<List<TripDTO>> =
-        suspendCoroutine { continuation ->
-            tripsAPI.getTrips()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        val responseTripIds = response.trips.map { it.id }.toSet()
-
-                        val tripsToGenerate = RealmManager.realm
-                            ?.query(TripEntity::class)
-                            ?.find()
-                            ?.filter { trip ->
-                                trip.tripStatus != TripStatuses.Draft.id && !responseTripIds.contains(
-                                    trip.id
-                                )
-                            }
-
-                        val firstTrip = tripsToGenerate?.firstOrNull()
-                        val requests = Requests().apply {
-                            destination = firstTrip?.destination
-                            timeframe = firstTrip?.timeframe
-                            context = firstTrip?.context
-                            budget = firstTrip?.totalBudget
-                        }
-                        CoroutineScope(Dispatchers.Main).launch {
-                            tripCreate(requests)
-                        }
-                        RealmManager.realm
-                            ?.query(TripEntity::class)
-                            ?.find()
-                            ?.filter { trip ->
-                                trip.tripStatus != TripStatuses.Draft.id && !responseTripIds.contains(
-                                    trip.id
-                                )
-                            }
-                            ?.forEach { RealmManager.remove(it) }
-
-                        response.trips.map { it.toEntity() }.let { entities ->
-                            RealmManager.save(entities)
-                        }
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
-
-    override suspend fun getTripId(id: Int): Result<Boolean> =
-        suspendCoroutine { continuation ->
-            tripsAPI.getTripId(id)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-
-                        continuation.resume(Result.success(true))
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
-
-    override suspend fun syncTrips(trips: List<TripDTO>): Result<Boolean> =
-        suspendCoroutine { continuation ->
-            tripsAPI.tripSync(trips)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        continuation.resume(Result.success(true))
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
-
-
-    override suspend fun tripDelete(id: Int): Result<Boolean> = suspendCoroutine { continuation ->
-        tripsAPI.tripDelete(id)
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .unsubscribeOn(Schedulers.io())
-            .subscribe(object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    continuation.resume(Result.success(true))
-                }
-
-                override fun onError(error: Throwable) {
-                    continuation.resume(Result.failure(error))
-                }
-
-                override fun noInternet() {
-                    continuation.resume(Result.failure(Exception("No internet connection")))
-                }
-            })
+        context: String
+    ): Result<TripDay> = safeApiCall {
+        val response = api.tripDayEdit(tripDayId, destination, budget, context)
+        val dto = response.tripDay ?: throw Exception("Empty trip day")
+        dto.toDomain()
     }
 
-    override suspend fun tripRegenerate(id: Int): Result<TripDTO> =
-        suspendCoroutine { continuation ->
-            val handler = object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    if (!isCancelled()) {
-                        response.trip?.toEntity()?.let { entity ->
-                            RealmManager.save(entity)
-                        }
-                        continuation.resume(Result.success(response.trip) as Result<TripDTO>)
-                    }
-                }
-
-                override fun onError(error: Throwable) {
-                    if (!isCancelled()) {
-                        continuation.resume(Result.failure(error))
-                    }
-                }
-
-                override fun noInternet() {
-                    if (!isCancelled()) {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                }
-            }
-
-            currentTripCreateHandler = handler
-
-            tripsAPI.tripRegenerate(id)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(handler)
-        }
-
-    override suspend fun tripEdit(tripId: Int, request: Requests?): Result<TripDTO> =
-        suspendCoroutine { continuation ->
-            val handler = object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    if (!isCancelled()) {
-                        response.trip?.toEntity()?.let { entity ->
-                            RealmManager.save(entity)
-                        }
-                        continuation.resume(Result.success(response.trip) as Result<TripDTO>)
-                    }
-                }
-
-                override fun onError(error: Throwable) {
-                    if (!isCancelled()) {
-                        continuation.resume(Result.failure(error))
-                    }
-                }
-
-                override fun noInternet() {
-                    if (!isCancelled()) {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                }
-            }
-
-            currentTripCreateHandler = handler
-
-            tripsAPI.tripEdit(tripId, request)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(handler)
-        }
-
-    override suspend fun tripVote(tripId: Int, aiResultsVote: String): Result<Boolean> =
-        suspendCoroutine { continuation ->
-            tripsAPI.tripVote(tripId, aiResultsVote)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        continuation.resume(Result.success(true))
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
-
-    private var currentTripCreateHandler: ResponseHandler<Base>? = null
-
-    override suspend fun tripCreate(request: Requests?): Result<TripDTO> =
-        suspendCoroutine { continuation ->
-            val handler = object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    if (!isCancelled()) {
-                        response.trip?.toEntity()?.let { entity ->
-                            RealmManager.save(entity)
-                        }
-                        continuation.resume(Result.success(response.trip) as Result<TripDTO>)
-                    }
-                }
-
-                override fun onError(error: Throwable) {
-                    if (!isCancelled()) {
-                        continuation.resume(Result.failure(error))
-                    }
-                }
-
-                override fun noInternet() {
-                    if (!isCancelled()) {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                }
-            }
-
-            currentTripCreateHandler = handler
-
-            tripsAPI.tripCreate(request)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(handler)
-        }
-
-    override suspend fun tripSurprise(requests: Requests?): Result<List<TripDTO>> =
-        suspendCoroutine { continuation ->
-            tripsAPI.tripSurprise(requests)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Any>() {
-                    override fun onSuccess(response: Any) {
-                        val trips = mapToTrips(response)
-                        continuation.resume(Result.success(trips))
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
-
-    override suspend fun tripSurpriseSave(trip: TripDTO?): Result<TripDTO> {
-        return suspendCoroutine { continuation ->
-            val saveRequest = trip?.toSaveRequest()
-            tripsAPI.tripSurpriseSave(saveRequest)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        response.trip?.let { savedTrip ->
-                            continuation.resume(Result.success(savedTrip))
-                        }
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
+    override suspend fun regenerateTripDay(tripDayId: Int): Result<TripDay> = safeApiCall {
+        val response = api.tripDayRegenerate(tripDayId)
+        val dto = response.tripDay ?: throw Exception("Empty trip day")
+        dto.toDomain()
     }
 
-    fun mapToTrips(data: Any?): List<TripDTO> {
-        if (data !is Map<*, *>) return emptyList()
-
-        val suggestions = data["suggestions"] as? List<*> ?: return emptyList()
-
-        return suggestions.mapNotNull { tripMap: Any? ->
-            if (tripMap !is Map<*, *>) return@mapNotNull null
-
-            val tripName = tripMap["trip_name"] as? String ?: ""
-            val description = tripMap["description"] as? String ?: ""
-            val estFlightCost = (tripMap["est_flight_cost"] as? Double) ?: 0.0
-            val estAccommodationCost = (tripMap["est_accommodation_cost"] as? Double) ?: 0.0
-            val origin = tripMap["origin"] as? String ?: ""
-            val includeEstimatedCosts = (tripMap["include_estimated_costs"] as? Boolean) ?: false
-
-            val days = tripMap["days"] as? List<*> ?: emptyList<Any?>()
-
-            val tripDays = days.mapNotNull { dayMap: Any? ->
-                if (dayMap !is Map<*, *>) return@mapNotNull null
-
-                val dayIndex = (dayMap["day"] as? Double)?.toInt() ?: 0
-                val date = dayMap["date"] as? String ?: ""
-                val dayTitle = dayMap["day_title"] as? String ?: ""
-                val totalDayCost = (dayMap["total_day_cost"] as? Double) ?: 0.0
-
-                val morning = dayMap["morning"] as? Map<*, *>
-                val afternoon = dayMap["afternoon"] as? Map<*, *>
-                val evening = dayMap["evening"] as? Map<*, *>
-
-                val activities = listOfNotNull(
-                    morning?.toDayActivityDTO("morning"),
-                    afternoon?.toDayActivityDTO("afternoon"),
-                    evening?.toDayActivityDTO("evening")
-                )
-
-                TripDayDTO(
-                    dayIndex = dayIndex,
-                    date = date,
-                    title = dayTitle,
-                    totalDayCost = totalDayCost,
-                    dayActivities = activities
-                )
-            }
-
-            TripDTO(
-                id = 0,
-                title = tripName,
-                descriptionText = description,
-                estFlightCost = estFlightCost,
-                estAccommodationCost = estAccommodationCost,
-                origin = origin,
-                includeEstimatedCosts = includeEstimatedCosts,
-                tripDays = tripDays
-            )
-        }
-    }
-
-    fun Map<*, *>.toDayActivityDTO(segment: String) = DayActivityDTO(
-        dayActivitySegment = segment,
-        name = this["name"] as? String ?: "",
-        details = this["details"] as? String ?: "",
-        cost = (this["cost"] as? Double) ?: 0.0,
-        externalUrl = this["link"] as? String ?: ""
-    )
-
-    override fun cancelTripCreate() {
-        currentTripCreateHandler?.cancel()
-        currentTripCreateHandler = null
-    }
-
-    override suspend fun tripDayEdit(
-        tripDayId: Int,
-        destination: String, budget: Double, context: String,
-    ): Result<Boolean> = suspendCoroutine { continuation ->
-        tripsAPI.tripDayEdit(tripDayId, "\"$destination\"", budget, "\"$context\"")
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .unsubscribeOn(Schedulers.io())
-            .subscribe(object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    response.tripDay?.toEntity()?.let { entity ->
-                        RealmManager.save(entity)
-                    }
-                    continuation.resume(Result.success(true))
-                }
-
-                override fun onError(error: Throwable) {
-                    continuation.resume(Result.failure(error))
-                }
-
-                override fun noInternet() {
-                    continuation.resume(Result.failure(Exception("No internet connection")))
-                }
-            })
-    }
-
-    override suspend fun tripDayRegenerate(tripDayId: Int): Result<Boolean> =
-        suspendCoroutine { continuation ->
-            tripsAPI.tripDayRegenerate(tripDayId)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        response.tripDay?.toEntity()?.let { entity ->
-                            RealmManager.save(entity)
-                        }
-                        continuation.resume(Result.success(true))
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
+    override suspend fun editTripDayActivity(dayActivityId: Int, context: String): Result<DayActivity> =
+        safeApiCall {
+            val response = api.tripDayActivityEdit(dayActivityId, context)
+            val dto = response.dayActivity ?: throw Exception("Empty day activity")
+            dto.toDomain()
         }
 
-    override suspend fun tripDayActivityEdit(
-        dayActivityId: Int,
-        context: String,
-    ): Result<Boolean> = suspendCoroutine { continuation ->
-        tripsAPI.tripDayActivityEdit(dayActivityId, "\"$context\"")
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .unsubscribeOn(Schedulers.io())
-            .subscribe(object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    response.dayActivity?.toEntity()?.let { entity ->
-                        RealmManager.save(entity)
-                    }
-                    continuation.resume(Result.success(true))
-                }
-
-                override fun onError(error: Throwable) {
-                    continuation.resume(Result.failure(error))
-                }
-
-                override fun noInternet() {
-                    continuation.resume(Result.failure(Exception("No internet connection")))
-                }
-            })
+    override fun cancelTripCreation() {
+        // Retrofit coroutines can't be canceled directly
     }
-
 }

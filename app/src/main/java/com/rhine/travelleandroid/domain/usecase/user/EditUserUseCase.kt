@@ -1,14 +1,13 @@
 package com.rhine.travelleandroid.domain.usecase.user
 
-import com.kodetechnologies.guzoandroid.date.model.UserDTO
-import com.rhine.travelleandroid.data.repository.UserRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.data.remote.dto.UserDTO
+import com.rhine.travelleandroid.domain.repository.UserRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class EditUserUseCase(
+class EditUserUseCase @Inject constructor(
     private val repository: UserRepository
 ) {
-    suspend fun execute(profile: UserDTO): Result<Boolean> {
+    suspend operator fun invoke(profile: UserDTO): Result<Boolean> {
         return repository.editProfile(profile)
     }
 }

@@ -1,17 +1,13 @@
 package com.rhine.travelleandroid.domain.usecase.trips
 
-import com.kodetechnologies.guzoandroid.date.model.TripDTO
-import com.rhine.travelleandroid.data.repository.TripsRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.domain.model.TripDay
+import com.rhine.travelleandroid.domain.repository.TripsRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class TripRegenerateUseCase (
+class TripRegenerateUseCase@Inject constructor(
     private val repository: TripsRepository
 ) {
-    suspend fun execute(id: Int): Result<TripDTO> {
-        return repository.tripRegenerate(id)
-    }
-    fun cancel() {
-        repository.cancelTripCreate()
+    suspend operator fun invoke(tripDayId: Int): Result<TripDay> {
+        return repository.regenerateTripDay(tripDayId)
     }
 }

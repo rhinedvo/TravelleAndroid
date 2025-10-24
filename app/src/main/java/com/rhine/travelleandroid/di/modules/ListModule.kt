@@ -1,8 +1,8 @@
 package com.rhine.travelleandroid.di.modules
 
-import com.rhine.travelleandroid.data.api.ListAPI
-import com.rhine.travelleandroid.data.repository.ListRepository
+import com.rhine.travelleandroid.data.remote.api.ListAPI
 import com.rhine.travelleandroid.data.repository.ListRepositoryImpl
+import com.rhine.travelleandroid.domain.repository.ListRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

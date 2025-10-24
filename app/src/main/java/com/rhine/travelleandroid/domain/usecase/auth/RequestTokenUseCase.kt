@@ -1,13 +1,13 @@
 package com.rhine.travelleandroid.domain.usecase.auth
 
-import com.kodetechnologies.guzoandroid.date.repository.AuthRepository
-import toothpick.InjectConstructor
 
-@InjectConstructor
-class RequestTokenUseCase(
+import com.rhine.travelleandroid.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class RequestTokenUseCase @Inject constructor(
     private val repository: AuthRepository
 ) {
-    suspend fun requestToken(): Result<Boolean> {
+    suspend operator fun invoke(): Result<Boolean> {
         return repository.requestToken()
     }
 }

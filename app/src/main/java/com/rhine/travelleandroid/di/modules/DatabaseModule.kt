@@ -2,9 +2,9 @@ package com.rhine.travelleandroid.di.modules
 
 import android.content.Context
 import androidx.room.Room
-import com.rhine.travelleandroid.data.local.database.AppDatabase
-import com.rhine.travelleandroid.data.local.database.TokenDao
-import com.rhine.travelleandroid.data.local.database.UserDao
+import com.rhine.travelleandroid.data.local.AppDatabase
+import com.rhine.travelleandroid.data.local.dao.TokenDao
+import com.rhine.travelleandroid.data.local.dao.UserDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,21 +18,10 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "luxe_ai_database"
-        ).build()
-    }
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
+        Room.databaseBuilder(context, AppDatabase::class.java, "guzo_database")
+            .build()
 
-    @Provides
-    fun provideTokenDao(database: AppDatabase): TokenDao {
-        return database.tokenDao()
-    }
-
-    @Provides
-    fun provideUserDao(database: AppDatabase): UserDao {
-        return database.userDao()
-    }
+    @Provides fun provideUserDao(database: AppDatabase): UserDao = database.userDao()
+    @Provides fun provideTokenDao(database: AppDatabase): TokenDao = database.tokenDao()
 }

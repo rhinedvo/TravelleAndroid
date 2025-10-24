@@ -1,28 +1,19 @@
 package com.rhine.travelleandroid.data.local.repository
 
-import com.rhine.travelleandroid.data.local.database.TokenDao
-import com.rhine.travelleandroid.data.local.database.model.TokenEntity
+import com.rhine.travelleandroid.data.local.dao.TokenDao
+import com.rhine.travelleandroid.data.local.entity.TokenEntity
+import com.rhine.travelleandroid.data.mapper.toEntity
+import com.rhine.travelleandroid.data.remote.dto.TokenDTO
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
 class TokenRepository @Inject constructor(
     private val tokenDao: TokenDao
 ) {
-    suspend fun getToken(): TokenEntity? {
-        return tokenDao.getToken()
+    suspend fun saveToken(dto: TokenDTO) {
+        tokenDao.insertToken(dto.toEntity())
     }
-    
-    suspend fun getTokenString(): String? {
-        val token = tokenDao.getToken()
-        return token?.let { "${it.tokenType} ${it.accessToken}" }
-    }
-    
-    suspend fun insertToken(token: TokenEntity) {
-        tokenDao.insertToken(token)
-    }
-    
-    suspend fun deleteToken() {
-        tokenDao.deleteToken()
-    }
+
+    suspend fun getToken(): TokenEntity? = tokenDao.getToken()
+
+    suspend fun clearToken() = tokenDao.clearToken()
 }

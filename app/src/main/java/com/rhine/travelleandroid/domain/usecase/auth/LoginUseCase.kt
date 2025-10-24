@@ -1,13 +1,12 @@
 package com.rhine.travelleandroid.domain.usecase.auth
 
-import com.kodetechnologies.guzoandroid.date.repository.AuthRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.domain.repository.AuthRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class LoginUseCase(
+class LoginUseCase @Inject constructor(
     private val repository: AuthRepository
 ) {
-    suspend fun login(email: String, password: String): Result<Boolean> {
+    suspend operator fun invoke(email: String, password: String): Result<Boolean> {
         return repository.login(email, password)
     }
 }

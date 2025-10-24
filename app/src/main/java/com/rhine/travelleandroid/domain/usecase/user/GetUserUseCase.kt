@@ -1,11 +1,12 @@
 package com.rhine.travelleandroid.domain.usecase.user
 
-import com.rhine.travelleandroid.data.repository.UserRepository
-
+import com.rhine.travelleandroid.domain.repository.UserRepository
 import javax.inject.Inject
 
 class GetUserUseCase @Inject constructor(
-    private val userRepository: UserRepository
+    private val repository: UserRepository
 ) {
-    suspend operator fun invoke() = userRepository.getUser()
+    suspend operator fun invoke(): Result<Boolean> {
+        return repository.getProfile()
+    }
 }

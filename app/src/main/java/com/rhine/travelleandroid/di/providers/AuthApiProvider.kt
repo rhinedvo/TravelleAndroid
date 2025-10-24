@@ -1,6 +1,6 @@
 package com.rhine.travelleandroid.di.providers
 
-import com.rhine.travelleandroid.data.api.AuthAPI
+import com.rhine.travelleandroid.data.remote.api.AuthAPI
 import com.rhine.travelleandroid.di.modules.GenericApiProvider
 import javax.inject.Provider
 

@@ -1,13 +1,12 @@
 package com.rhine.travelleandroid.domain.usecase.auth
 
-import com.kodetechnologies.guzoandroid.date.repository.AuthRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.domain.repository.AuthRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class CheckEmailUseCase (
+class CheckEmailUseCase @Inject constructor(
     private val repository: AuthRepository
 ) {
-    suspend fun checkEmail(email: String): Result<Boolean> {
+    suspend operator fun invoke(email: String): Result<Boolean> {
         return try {
             repository.checkEmail(email)
         } catch (e: Exception) {

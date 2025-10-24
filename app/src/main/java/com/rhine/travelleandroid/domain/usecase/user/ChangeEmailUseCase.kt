@@ -1,13 +1,12 @@
 package com.rhine.travelleandroid.domain.usecase.user
 
-import com.rhine.travelleandroid.data.repository.UserRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.domain.repository.UserRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class ChangeEmailUseCase(
-    private val repository: UserRepository,
+class ChangeEmailUseCase @Inject constructor(
+    private val repository: UserRepository
 ) {
-    suspend fun changeEmail(newEmail: String): Result<Boolean> {
+    suspend operator fun invoke(newEmail: String): Result<Boolean> {
         return repository.changeEmail(newEmail)
     }
 }

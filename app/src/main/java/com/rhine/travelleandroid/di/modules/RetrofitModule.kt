@@ -1,6 +1,6 @@
 package com.rhine.travelleandroid.di.modules
 
-import com.kodetechnologies.luxeaiandroid.BuildConfig
+import com.rhine.travelleandroid.BuildConfig
 import com.rhine.travelleandroid.di.ServerPath
 import com.rhine.travelleandroid.di.WithErrorHandler
 import com.squareup.moshi.Moshi

@@ -1,141 +1,61 @@
 package com.rhine.travelleandroid.data.repository
 
-import com.kodetechnologies.guzoandroid.common.global.sha256
-import com.kodetechnologies.guzoandroid.date.ResponseHandler
-import com.kodetechnologies.guzoandroid.date.api.UserAPI
-import com.kodetechnologies.guzoandroid.date.database.RealmManager
-import com.kodetechnologies.guzoandroid.date.model.Base
-import com.kodetechnologies.guzoandroid.date.model.UserDTO
-import com.rhine.travelleandroid.data.ResponseHandler
-import com.rhine.travelleandroid.data.local.database.model.Base
-import com.rhine.travelleandroid.data.local.database.model.UserDTO
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
-import toothpick.InjectConstructor
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import com.rhine.travelleandroid.data.local.dao.UserDao
+import com.rhine.travelleandroid.data.mapper.toEntity
+import com.rhine.travelleandroid.data.remote.api.UserAPI
+import com.rhine.travelleandroid.domain.repository.UserRepository
+import com.rhine.travelleandroid.utils.safeApiCall
+import com.rhine.travelleandroid.utils.sha256
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-interface UserRepository {
-    suspend fun getProfile(): Result<Boolean>
-    suspend fun editProfile(profile: UserDTO): Result<Boolean>
-    suspend fun deleteProfile(): Result<Boolean>
-    suspend fun changePassword(newPassword: String, currentPassword: String): Result<Boolean>
-    suspend fun changeEmail(newEmail: String): Result<Boolean>
-}
-
-@InjectConstructor
-class UserRepositoryImpl(
+class UserRepositoryImpl @Inject constructor(
     private val userApi: UserAPI,
+    private val userDao: UserDao
 ) : UserRepository {
-    override suspend fun getProfile(): Result<Boolean> = suspendCoroutine { continuation ->
-        userApi.getUser()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .unsubscribeOn(Schedulers.io())
-            .subscribe(object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    response.user?.toEntity()?.let {
-                        RealmManager.save(it)
-                    }
-                    continuation.resume(Result.success(true))
-                }
 
-                override fun onError(error: Throwable) {
-                    continuation.resume(Result.failure(error))
-                }
+    override suspend fun getProfile(): Result<Boolean> = safeApiCall {
+        val response = userApi.getUser()
+        val user = response.user ?: throw Exception("User not found")
 
-                override fun noInternet() {
-                    continuation.resume(Result.failure(Exception("No internet connection")))
-                }
-            })
-    }
-
-    override suspend fun editProfile(profile: UserDTO): Result<Boolean> =
-        suspendCoroutine { continuation ->
-            userApi.editUser(profile)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        response.user?.toEntity()?.let {
-                            RealmManager.save(it)
-                        }
-                        continuation.resume(Result.success(true))
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
+        withContext(Dispatchers.IO) {
+            userDao.clearUser()
+            userDao.insertUser(user.toEntity())
         }
 
-    override suspend fun deleteProfile(): Result<Boolean> = suspendCoroutine { continuation ->
+        true
+    }
+
+    override suspend fun editProfile(profile: com.rhine.travelleandroid.data.remote.dto.UserDTO): Result<Boolean> = safeApiCall {
+        val response = userApi.editUser(profile)
+        val user = response.user ?: throw Exception("User not found")
+
+        withContext(Dispatchers.IO) {
+            userDao.insertUser(user.toEntity())
+        }
+
+        true
+    }
+
+    override suspend fun deleteProfile(): Result<Boolean> = safeApiCall {
         userApi.deleteUser()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .unsubscribeOn(Schedulers.io())
-            .subscribe(object : ResponseHandler<Base>() {
-                override fun onSuccess(response: Base) {
-                    continuation.resume(Result.success(true))
-                }
-
-                override fun onError(error: Throwable) {
-                    continuation.resume(Result.failure(error))
-                }
-
-                override fun noInternet() {
-                    continuation.resume(Result.failure(Exception("No internet connection")))
-                }
-            })
+        withContext(Dispatchers.IO) {
+            userDao.clearUser()
+        }
+        true
     }
 
     override suspend fun changePassword(
         newPassword: String,
-        currentPassword: String,
-    ): Result<Boolean> =
-        suspendCoroutine { continuation ->
-            userApi.changePassword(newPassword.sha256(), currentPassword.sha256())
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        continuation.resume(Result.success(true))
-                    }
+        currentPassword: String
+    ): Result<Boolean> = safeApiCall {
+        userApi.changePassword(newPassword.sha256(), currentPassword.sha256())
+        true
+    }
 
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
-
-    override suspend fun changeEmail(newEmail: String): Result<Boolean> =
-        suspendCoroutine { continuation ->
-            userApi.changeEmail(newEmail)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .unsubscribeOn(Schedulers.io())
-                .subscribe(object : ResponseHandler<Base>() {
-                    override fun onSuccess(response: Base) {
-                        continuation.resume(Result.success(true))
-                    }
-
-                    override fun onError(error: Throwable) {
-                        continuation.resume(Result.failure(error))
-                    }
-
-                    override fun noInternet() {
-                        continuation.resume(Result.failure(Exception("No internet connection")))
-                    }
-                })
-        }
+    override suspend fun changeEmail(newEmail: String): Result<Boolean> = safeApiCall {
+        userApi.changeEmail(newEmail)
+        true
+    }
 }

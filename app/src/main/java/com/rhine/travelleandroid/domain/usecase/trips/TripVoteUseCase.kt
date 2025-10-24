@@ -1,13 +1,12 @@
 package com.rhine.travelleandroid.domain.usecase.trips
 
-import com.rhine.travelleandroid.data.repository.TripsRepository
-import toothpick.InjectConstructor
+import com.rhine.travelleandroid.domain.repository.TripsRepository
+import javax.inject.Inject
 
-@InjectConstructor
-class TripVoteUseCase (
+class TripVoteUseCase @Inject constructor(
     private val repository: TripsRepository
 ) {
-    suspend fun execute(tripId: Int, vote: String): Result<Boolean> {
-        return repository.tripVote(tripId, vote)
+    suspend operator fun invoke(tripId: Int, vote: String): Result<Boolean> {
+        return repository.voteForTrip(tripId, vote)
     }
 }
