@@ -20,21 +20,7 @@ import com.rhine.travelleandroid.presentation.viewmodel.SplashViewModel
 import com.rhine.travelleandroid.utils.isOnline
 
 @Composable
-fun SplashScreen(
-    navController: NavController,
-    viewModel: SplashViewModel = hiltViewModel()
-) {
-    val context = LocalContext.current
-    val hasInternet = remember { isOnline(context) }
-    val hasToken = false // TODO: отримаєш із локальної БД (Room)
-    val isGuest = false // TODO: витягни з user entity
-
-    // Запуск ініціалізації
-    LaunchedEffect(Unit) {
-        viewModel.initializeApp(hasInternet, hasToken, isGuest)
-    }
-
-    // UI
+fun SplashScreen(viewModel: SplashViewModel) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -44,18 +30,5 @@ fun SplashScreen(
             contentDescription = null,
             modifier = Modifier.size(160.dp)
         )
-    }
-
-    // Навігація
-    LaunchedEffect(viewModel.splashState) {
-        when (viewModel.splashState) {
-            SplashState.NavigateToAuth -> navController.navigate("auth") {
-                popUpTo("splash") { inclusive = true }
-            }
-            SplashState.NavigateToMain -> navController.navigate("main") {
-                popUpTo("splash") { inclusive = true }
-            }
-            else -> Unit
-        }
     }
 }

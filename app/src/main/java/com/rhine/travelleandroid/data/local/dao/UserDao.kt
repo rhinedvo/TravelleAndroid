@@ -18,4 +18,8 @@ interface UserDao {
 
     @Query("DELETE FROM user")
     suspend fun clearUser()
+
+    @Query("SELECT * FROM user LIMIT 1")
+    fun getUserFlow(): kotlinx.coroutines.flow.Flow<UserEntity?>
+
 }
